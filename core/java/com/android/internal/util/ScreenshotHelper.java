@@ -38,6 +38,16 @@ public class ScreenshotHelper {
     private ServiceConnection mScreenshotConnection = null;
     private final Context mContext;
 
+    private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            synchronized (mScreenshotLock) {
+                if (ACTION_USER_SWITCHED.equals(intent.getAction())) {
+                    resetConnection();
+                }
+            }
+        }
+    };
 
     public ScreenshotHelper(Context context) {
         mContext = context;
