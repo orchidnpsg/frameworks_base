@@ -1113,19 +1113,6 @@ public interface WindowManager extends ViewManager {
         public static final int TYPE_APPLICATION_OVERLAY = FIRST_SYSTEM_WINDOW + 38;
 
         /**
-         * Window type: Long screenshot overlay
-         * @hide
-         */
-        public static final int TYPE_SYSTEM_LONGSHOT = FIRST_SYSTEM_WINDOW + 39;
-
-        /**
-         * Window type: panel that slides out from the status bar
-         * In multiuser systems shows on all users' windows.
-         * @hide
-         */
-        public static final int TYPE_SLIM_RECENTS = FIRST_SYSTEM_WINDOW+39;
-
-        /**
          * End of types of system windows.
          */
         public static final int LAST_SYSTEM_WINDOW      = 2999;
