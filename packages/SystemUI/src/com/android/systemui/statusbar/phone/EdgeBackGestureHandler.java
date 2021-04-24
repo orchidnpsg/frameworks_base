@@ -66,7 +66,6 @@ import com.android.systemui.R;
 import com.android.systemui.bubbles.BubbleController;
 import com.android.systemui.recents.OverviewProxyService;
 import com.android.systemui.shared.system.QuickStepContract;
-import com.android.systemui.shared.system.WindowManagerWrapper;
 import com.android.systemui.tuner.TunerService;
 
 import lineageos.providers.LineageSettings;
@@ -86,36 +85,10 @@ public class EdgeBackGestureHandler implements DisplayListener, TunerService.Tun
     private static final String KEY_EDGE_LONG_SWIPE_ACTION =
             "lineagesystem:" + LineageSettings.System.KEY_EDGE_LONG_SWIPE_ACTION;
 
-    private final IPinnedStackListener.Stub mImeChangedListener = new IPinnedStackListener.Stub() {
-        @Override
-        public void onListenerRegistered(IPinnedStackController controller) {
-        }
 
-        @Override
-        public void onImeVisibilityChanged(boolean imeVisible, int imeHeight) {
-            // No need to thread jump, assignments are atomic
-            mImeHeight = imeVisible ? imeHeight : 0;
-            // TODO: Probably cancel any existing gesture
-        }
+    private static final String KEY_GESTURE_BACK_EXCLUDE_TOP =
+            "lineagesecure:" + LineageSettings.Secure.GESTURE_BACK_EXCLUDE_TOP;
 
-        @Override
-        public void onShelfVisibilityChanged(boolean shelfVisible, int shelfHeight) {
-        }
-
-        @Override
-        public void onMinimizedStateChanged(boolean isMinimized) {
-        }
-
-        @Override
-        public void onMovementBoundsChanged(Rect insetBounds, Rect normalBounds,
-                Rect animatingBounds, boolean fromImeAdjustment, boolean fromShelfAdjustment,
-                int displayRotation) {
-        }
-
-        @Override
-        public void onActionsChanged(ParceledListSlice actions) {
-        }
-    };
 
     private ISystemGestureExclusionListener mGestureExclusionListener =
             new ISystemGestureExclusionListener.Stub() {
@@ -145,6 +118,8 @@ public class EdgeBackGestureHandler implements DisplayListener, TunerService.Tun
 
     // The edge width where touch down is allowed
     private int mEdgeWidth;
+    // The bottom gesture area height
+    private int mBottomGestureHeight;
     // The slop to distinguish between horizontal and vertical motion
     private final float mTouchSlop;
     // Duration after which we consider the event as longpress.
@@ -163,8 +138,6 @@ public class EdgeBackGestureHandler implements DisplayListener, TunerService.Tun
     private boolean mAllowGesture = false;
     private boolean mInRejectedExclusion = false;
     private boolean mIsOnLeftEdge;
-
-    private int mImeHeight = 0;
 
     private boolean mIsAttached;
     private boolean mIsGesturalModeEnabled;
@@ -220,6 +193,8 @@ public class EdgeBackGestureHandler implements DisplayListener, TunerService.Tun
     public void updateCurrentUserResources(Resources res) {
         mEdgeWidth = res.getDimensionPixelSize(
                 com.android.internal.R.dimen.config_backGestureInset);
+        mBottomGestureHeight = res.getDimensionPixelSize(
+                com.android.internal.R.dimen.navigation_bar_gesture_height);
     }
 
     private void vibrateTick() {
@@ -320,7 +295,6 @@ public class EdgeBackGestureHandler implements DisplayListener, TunerService.Tun
         }
 
         if (!mIsEnabled) {
-            WindowManagerWrapper.getInstance().removePinnedStackListener(mImeChangedListener);
             mContext.getSystemService(DisplayManager.class).unregisterDisplayListener(this);
 
             try {
@@ -337,7 +311,6 @@ public class EdgeBackGestureHandler implements DisplayListener, TunerService.Tun
                     mContext.getMainThreadHandler());
 
             try {
-                WindowManagerWrapper.getInstance().addPinnedStackListener(mImeChangedListener);
                 WindowManagerGlobal.getWindowManagerService()
                         .registerSystemGestureExclusionListener(
                                 mGestureExclusionListener, mDisplayId);
@@ -394,19 +367,20 @@ public class EdgeBackGestureHandler implements DisplayListener, TunerService.Tun
     }
 
     private boolean isWithinTouchRegion(int x, int y) {
-        // Disallow if over the IME
-        if (y > (mDisplaySize.y - Math.max(mImeHeight, mNavBarHeight))) {
-            return false;
-        }
 
-        if (mEdgeHeight != 0) {
-            if (y < (mDisplaySize.y - Math.max(mImeHeight, mNavBarHeight) - mEdgeHeight)) {
-                return false;
-            }
+        // Disallow if over user exclusion area
+        if (mUserExclude > 0 && y < mDisplaySize.y - mNavBarHeight - mUserExclude) {
+            return false;
+
         }
         
         // Disallow if too far from the edge
         if (x > mEdgeWidth + mLeftInset && x < (mDisplaySize.x - mEdgeWidth - mRightInset)) {
+            return false;
+        }
+
+        // Disallow if we are in the bottom gesture area
+        if (y >= (mDisplaySize.y - mBottomGestureHeight)) {
             return false;
         }
 
@@ -575,9 +549,7 @@ public class EdgeBackGestureHandler implements DisplayListener, TunerService.Tun
     }
 
     private void updateDisplaySize() {
-        mContext.getSystemService(DisplayManager.class)
-                .getDisplay(mDisplayId)
-                .getRealSize(mDisplaySize);
+        mContext.getDisplay().getRealSize(mDisplaySize);
         updateLongSwipeWidth();
         updateEdgeHeightValue();
     }
@@ -623,7 +595,6 @@ public class EdgeBackGestureHandler implements DisplayListener, TunerService.Tun
         pw.println("  mInRejectedExclusion" + mInRejectedExclusion);
         pw.println("  mExcludeRegion=" + mExcludeRegion);
         pw.println("  mUnrestrictedExcludeRegion=" + mUnrestrictedExcludeRegion);
-        pw.println("  mImeHeight=" + mImeHeight);
         pw.println("  mIsAttached=" + mIsAttached);
         pw.println("  mEdgeWidth=" + mEdgeWidth);
     }
