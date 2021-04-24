@@ -709,9 +709,7 @@ public interface WindowManager extends ViewManager {
                 @ViewDebug.IntToString(from = TYPE_SCREENSHOT,
                         to = "SCREENSHOT"),
                 @ViewDebug.IntToString(from = TYPE_APPLICATION_OVERLAY,
-                        to = "APPLICATION_OVERLAY"),
-                @ViewDebug.IntToString(from = TYPE_SLIM_RECENTS,
-                        to = "TYPE_SLIM_RECENTS")
+                        to = "APPLICATION_OVERLAY")
         })
         public int type;
 
